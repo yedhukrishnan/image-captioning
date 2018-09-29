@@ -1,5 +1,6 @@
 from keras.utils import to_categorical
 from keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing.text import Tokenizer
 import numpy as np
 
 # Function to one-hot encode the output captions
@@ -12,13 +13,17 @@ def one_hot_encode(data, vocab_size):
     y = y.reshape(data.shape[0], data.shape[1], vocab_size)
     return y
 
-def max_length(lines):
-    return max(len(line.split()) for line in lines)
+def load_data(images_path, captions_path):
+    images = np.load(images_path)
+    captions = np.load(captions_path)
+    return (images, captions)
 
-# encode and pad sequences
-def encode_sequences(tokenizer, length, lines):
-	# integer encode sequences
-	X = tokenizer.texts_to_sequences(lines)
-	# pad sequences with 0 values
-	X = pad_sequences(X, maxlen=length, padding='post')
-	return X
+def generate_tokenizer(captions):
+    tokenizer = Tokenizer()
+    tokenizer.fit_on_texts(captions)
+    return tokenizer
+
+def encode_sequences(tokenizer, max_caption_length, lines):
+    X = tokenizer.texts_to_sequences(lines)
+    X = pad_sequences(X, maxlen = max_caption_length, padding = 'post')
+    return X
