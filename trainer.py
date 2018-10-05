@@ -107,12 +107,13 @@ print(model.summary())
 
 model.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop')
 
+print("images.shape: ", images.shape)
 print("encoded_captions.shape: ", encoded_captions.shape)
 print("one_hot_captions.shape: ", one_hot_captions.shape)
 
 # print(model.summary())
 
-# model.fit([images, encoded_captions], one_hot_captions, batch_size = 1, epochs = 5)
+# model.fit([images[:100,:,:,:], encoded_captions[:100,:]], one_hot_captions[:100,:,:], batch_size = 10, epochs = 5)
 # model.save_weights('image_caption_weights.h5')
 
 # model = get_image_model(len(tokenizer.word_index) + 1, 41) # hardcoding max_y for now
@@ -121,8 +122,7 @@ print("one_hot_captions.shape: ", one_hot_captions.shape)
 
 # model.fit(x, y, epochs=30, batch_size=64, verbose=2)
 filename = 'image_caption_weights.h5'
-checkpoint = ModelCheckpoint(filename, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
-model.fit([images, encoded_captions], one_hot_captions, epochs=30, batch_size=64)#, validation_data=(test_x, test_y), callbacks=[checkpoint], verbose=2)
-
+checkpoint = ModelCheckpoint(filename, verbose=1, mode='min')
+model.fit([images, encoded_captions], one_hot_captions, epochs=30, batch_size=64, callbacks=[checkpoint], verbose=2)
 
 
