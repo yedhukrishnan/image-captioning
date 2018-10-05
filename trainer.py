@@ -1,10 +1,10 @@
 import numpy as np
-from keras.preprocessing.text import Tokenizer
-from keras.models import Sequential
+from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, LSTM, Flatten, Embedding, RepeatVector, TimeDistributed, ZeroPadding2D, Concatenate, Activation
 from keras.layers.normalization import BatchNormalization
+from keras.layers import concatenate
 # from keras.utils import plot_model
-# from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint
 from utils import *
 
 # Generate input/output data
@@ -60,47 +60,69 @@ def get_image_model():
     model.add(Dropout(0.5))
     model.add(Dense(1000, activation='softmax'))
 
+    model.layers.pop()
+    for layer in model.layers:
+        layer.trainable = False
+
+    model.add(RepeatVector(max_caption_length))
+
     return model
 
 def get_language_model(vocab_size):
     language_model = Sequential()
     language_model.add(Embedding(vocab_size, 256, input_length = max_caption_length))
-    language_model.add(LSTM(output_dim = 128, return_sequences = True))
+    language_model.add(LSTM(128, return_sequences = True)) 
     language_model.add(TimeDistributed(Dense(128)))
     return language_model
 
+def get_concatenated_model(image_model, language_model, vocab_size):
+    merged = concatenate([image_model.output, language_model.output])
+    x = LSTM(256, return_sequences = True)(merged)
+    x = Dense(vocab_size)(x)
+    out = Activation('softmax')(x)
+
+
+    model = Model([image_model.input, language_model.input], out)
+    return model
+
 image_model = get_image_model()
-
-image_model.layers.pop()
-for layer in image_model.layers:
-    layer.trainable = False
-
 language_model = get_language_model(vocab_size)
+model = get_concatenated_model(image_model, language_model, vocab_size)
 
-image_model.add(RepeatVector(max_caption_length))
+# merged = concatenate([image_model.output, language_model.output])
+# x = RepeatVector(max_caption_length)(merged)
+# x = LSTM(256, return_sequences = False)(x)
+# x = Dense(vocab_size)(x)
+# out = Activation('softmax')(x)
+# out = TimeDistributed(out)
 
-model = Sequential()
-model.add(Concatenate([image_model, language_model]))
-model.add(LSTM(256, return_sequences = False))
-model.add(Dense(vocab_size))
-model.add(Activation('softmax'))
+# print(out.summary())
+
+# model = Model([image_model.input, language_model.input], out)
+# model.fit([images, encoded_captions], one_hot_captions, ...)
+
+print(image_model.summary())
+print(language_model.summary())
+print(model.summary())
 
 model.compile(loss = 'categorical_crossentropy', optimizer = 'rmsprop')
 
 print("encoded_captions.shape: ", encoded_captions.shape)
 print("one_hot_captions.shape: ", one_hot_captions.shape)
 
-model.fit([images, encoded_captions], one_hot_captions, batch_size = 1, epochs = 5)
-model.save_weights('image_caption_weights.h5')
+# print(model.summary())
+
+# model.fit([images, encoded_captions], one_hot_captions, batch_size = 1, epochs = 5)
+# model.save_weights('image_caption_weights.h5')
 
 # model = get_image_model(len(tokenizer.word_index) + 1, 41) # hardcoding max_y for now
 # model.compile(optimizer='adam', loss='categorical_crossentropy')
 # print(model.summary())
 
 # model.fit(x, y, epochs=30, batch_size=64, verbose=2)
-# filename = 'model.h5'
-# checkpoint = ModelCheckpoint(filename, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
-# model.fit(train_x, train_y, epochs=30, batch_size=64, validation_data=(test_x, test_y), callbacks=[checkpoint], verbose=2)
+filename = 'image_caption_weights.h5'
+checkpoint = ModelCheckpoint(filename, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+model.fit([images, encoded_captions], one_hot_captions, epochs=30, batch_size=64)#, validation_data=(test_x, test_y), callbacks=[checkpoint], verbose=2)
 
 
 
